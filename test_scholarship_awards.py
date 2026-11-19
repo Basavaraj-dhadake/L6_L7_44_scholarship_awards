@@ -1,119 +1,95 @@
-import pytest
-from scholarship_awards import award_amount, is_eligible, application_status
+from hypothesis import given, strategies as st
 
-# Example test cases:
-def test_below_cutoff_marks():
-    assert award_amount("merit", 70, "low", False) == 0
-
-def test_is_eligible():
-    assert is_eligible(90, 0, False) is True
-
-# Write the rest of the test cases so that the code is 90-100% covered.
-# Additional test cases for Code Coverage
-
-# Award amount tests
-
-def test_unknown_category():
-    with pytest.raises(ValueError):
-        award_amount("science", 90, "low", False)
+from scholarship_awards import (
+    parse_applicant,
+    marks_average,
+    payable_award
+)
 
 
-def test_invalid_marks():
-    with pytest.raises(ValueError):
-        award_amount("merit", -5, "low", False)
+# Test parse_applicant
+@given(st.one_of(st.text(), st.none()))
+def test_parse_applicant_no_crash(s):
+    result = parse_applicant(s)
+
+    assert result is None or (
+        isinstance(result, tuple) and len(result) == 2
+    )
 
 
-def test_merit_award():
-    assert award_amount("merit", 80, "low", False) == 500
+# Test marks_average
+@given(st.one_of(st.text(), st.none()))
+def test_marks_average_no_crash(s):
+    result = marks_average(s)
+
+    assert result is None or isinstance(result, int)
 
 
-def test_sports_award():
-    assert award_amount("sports", 70, "low", False) == 1000
+# Test payable_award
+@given(st.one_of(st.text(), st.none()))
+def test_payable_award_no_crash(s):
+    result = payable_award(s)
+
+    assert result is None or result >= 0
 
 
-def test_arts_award():
-    assert award_amount("arts", 75, "high", False) == 600
+# Additional valid input tests
+
+@given(
+    st.text(
+        alphabet=st.characters(
+            whitelist_categories=('L',)
+        ),
+        min_size=1
+    ),
+    st.floats(
+        min_value=0,
+        max_value=100,
+        allow_nan=False,
+        allow_infinity=False
+    )
+)
+def test_parse_applicant_valid(category, marks):
+    result = parse_applicant(f"{category}:{marks}")
+
+    assert result is not None
+    assert result[0] == category.strip().title()
+    assert result[1] == marks
 
 
-def test_merit_renewal():
-    assert award_amount("merit", 72, "low", True) == 200
+@given(
+    st.lists(
+        st.integers(min_value=0, max_value=100),
+        min_size=1
+    )
+)
+def test_marks_average_valid(values):
+    csv = ','.join(map(str, values))
+
+    result = marks_average(csv)
+
+    assert result == sum(values) // len(values)
 
 
-def test_sports_renewal():
-    assert award_amount("sports", 65, "low", True) == 500
+@given(
+    st.floats(
+        min_value=0,
+        max_value=100000,
+        allow_nan=False,
+        allow_infinity=False
+    ),
+    st.floats(
+        min_value=0,
+        max_value=100000,
+        allow_nan=False,
+        allow_infinity=False
+    )
+)
+def test_payable_award_valid(award, deduction):
+    text = f"{award}|{deduction}"
 
+    result = payable_award(text)
 
-def test_high_income():
-    assert award_amount("merit", 80, "high", False) == 300
+    expected = max(award * 1.18 - deduction, 0)
 
-
-def test_large_low_income_award():
-    assert award_amount("merit", 95, "low", False) == 3200
-
-
-def test_large_high_income_award():
-    assert award_amount("merit", 95, "high", False) == 2000
-
-
-def test_marks_equal_cutoff():
-    assert award_amount("merit", 75, "low", False) == 0
-
-
-# Eligibility tests
-
-def test_special_quota_eligible():
-    assert is_eligible(60, 2, True) is True
-
-
-def test_special_quota_not_eligible():
-    assert is_eligible(60, 3, True) is False
-
-
-def test_low_attendance():
-    assert is_eligible(70, 0, False) is False
-
-
-def test_good_attendance():
-    assert is_eligible(80, 0, False) is True
-
-
-def test_backlogs_not_eligible():
-    assert is_eligible(90, 2, False) is False
-
-
-def test_one_backlog():
-    assert is_eligible(90, 1, False) is True
-
-
-# Application status tests
-
-def test_application_open():
-    assert application_status(40, False, False) == "open"
-
-
-def test_application_closing():
-    assert application_status(10, False, False) == "closing"
-
-
-def test_application_closed():
-    assert application_status(4, False, False) == "closed"
-
-
-def test_renewal_application():
-    assert application_status(35, True, False) == "open"
-
-
-def test_paper_application():
-    assert application_status(35, False, True) == "open"
-
-
-def test_renewal_paper_application():
-    assert application_status(45, True, True) == "open"
-
-
-def test_renewal_closing():
-    assert application_status(20, True, False) == "closing"
-
-
-def test_paper_closing():
-    assert application_status(20, False, True) == "closing"
+    assert abs(result - expected) < 0.000001

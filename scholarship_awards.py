@@ -1,45 +1,75 @@
-CUTOFF_MARKS = {"merit": 75, "sports": 60, "arts": 65}
+def parse_applicant(text):
+    try:
+        if not isinstance(text, str):
+            return None
+
+        category, marks = text.split(':', 1)
+
+        category = category.strip()
+        marks = float(marks.strip())
+
+        if not category:
+            return None
+
+        return category.title(), marks
+
+    except (ValueError, TypeError):
+        return None
 
 
-def award_amount(category, marks, income_level, is_renewal):
-    if category not in CUTOFF_MARKS:
-        raise ValueError("unknown category")
-    if marks < 0:
-        raise ValueError("invalid marks")
-    cutoff = CUTOFF_MARKS[category]
-    if is_renewal and category != "sports":
-        cutoff -= 5
-    above = marks - cutoff
-    if above <= 0:
-        return 0
-    if income_level == "low":
-        rate = 100
-    else:
-        rate = 60
-    if above > 15:
-        rate = rate + 40
-        if income_level == "low":
-            rate += 20
-    return above * rate
+def marks_average(marks_csv):
+    try:
+        if not isinstance(marks_csv, str):
+            return None
+
+        values = [int(r.strip()) for r in marks_csv.split(',')]
+
+        if not values:
+            return None
+
+        return sum(values) // len(values)
+
+    except (ValueError, TypeError):
+        return None
 
 
-def is_eligible(attendance, backlogs, is_special_quota):
-    if is_special_quota:
-        return backlogs <= 2
-    if attendance < 75:
-        return False
-    return backlogs <= 1
+def payable_award(text):
+    try:
+        if not isinstance(text, str):
+            return None
+
+        award, deduction = text.split('|')
+
+        award = float(award.strip())
+        deduction = float(deduction.strip())
+
+        total = award * 1.18 - deduction
+
+        return max(total, 0)
+
+    except (ValueError, TypeError):
+        return None
 
 
-def application_status(days_left, is_renewal, is_paper):
-    if is_renewal:
-        cutoff = 30
-    else:
-        cutoff = 20
-    if is_paper:
-        cutoff += 10
-    if days_left >= cutoff:
-        return "open"
-    elif days_left >= cutoff - 15:
-        return "closing"
-    return "closed"
+def main():
+    print("==== Running parse_applicant ====")
+
+    user_input = input("Enter category:marks (e.g. merit:82): ")
+    result = parse_applicant(user_input)
+    print("Category and Marks:", result)
+
+    print("\n==== Running marks_average ====")
+
+    user_input = input("Enter marks as CSV (e.g. 72,85,90): ")
+    result = marks_average(user_input)
+    print("Average Marks:", result)
+
+    print("\n==== Running payable_award ====")
+
+    user_input = input("Enter award|deduction (e.g. 5000|500): ")
+    result = payable_award(user_input)
+    print("Payable Award:", result)
+
+
+if __name__ == "__main__":
+    main()
